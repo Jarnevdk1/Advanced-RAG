@@ -7,3 +7,8 @@ INDEX_DIR = ROOT_DIR / "data" / "index"
 
 LLM_MODEL = "mistral"
 EMBEDDING_MODEL = "infloat/multilingual-e5-small"
+
+#Chunking parameters
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 150
+MIN_CHUNK_CHARS = 25
