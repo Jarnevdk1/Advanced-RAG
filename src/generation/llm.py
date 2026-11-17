@@ -24,8 +24,9 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN + 1  
 
 
-#Check if the amount of tokens of the prompt fits in the specified context window
-def fits_in_context(messages, num_ctx: int = LLM_NUM_CTX, reserve: int = LLM_NUM_PREDICT) -> bool:
+def estimate_prompt_tokens(messages) -> int:
+    return sum(estimate_tokens(str(message.content)) for message in messages)  
 
-    prompt_tokens = sum(estimate_tokens(str(message.content)) for message in messages)  
-    return prompt_tokens + reserve <= num_ctx  
+
+def fits_in_context(messages, num_ctx: int = LLM_NUM_CTX, reserve: int = LLM_NUM_PREDICT) -> bool:
+    return estimate_prompt_tokens(messages) + reserve <= num_ctx  
