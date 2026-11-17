@@ -12,3 +12,11 @@ EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 MIN_CHUNK_CHARS = 25
+
+#LLM paramaters
+LLM_TEMPERATURE = 0.1
+LLM_NUM_CTX = 8192
+LLM_NUM_PREDICT = 1024
+
+#Amount of chunks to retrieve for the prompt
+RETRIEVAL_K = 4  
