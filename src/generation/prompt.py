@@ -7,8 +7,9 @@ SYSTEM_PROMPT = """Je bent een assistent die vragen beantwoordt op basis van de 
 
 Regels:
 1. Gebruik uitsluitend de informatie uit de fragmenten. Gebruik geen eigen voorkennis.
-2. Staat het antwoord niet in de fragmenten, zeg dan: "Dat staat niet in de documenten." Verzin niets.
-3. Antwoord in dezelfde taal als de vraag.
+2. Staat het antwoord niet in de fragmenten, zeg dan dat het antwoord niet in de documenten staat. Verzin niets.
+3. Antwoord altijd in de taal van de gebruikersvraag, ongeacht de taal van de documentfragmenten. 
+Vertaal relevante informatie indien nodig, zonder de oorspronkelijke betekenis te veranderen.
 4. Verwijs na elke bewering naar het fragment waarop ze steunt, bijvoorbeeld [1] of [2][3].
 5. Wees bondig."""
 
@@ -18,7 +19,9 @@ Regels:
 HUMAN_PROMPT = """Fragmenten:
 {context}
 
-Vraag: {question}"""
+Vraag: {question}
+
+Antwoord in de taal van deze vraag, niet de taal van de fragmenten: "{question}\""""
 
 
 

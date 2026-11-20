@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from langchain_community.vectorstores import FAISS  
 
+from src.advanced import ConversationHistory, condense_question
 from src.config import LLM_NUM_CTX, LLM_NUM_PREDICT, RETRIEVAL_K  
 from src.generation import build_prompt, estimate_prompt_tokens, fits_in_context, generate, page_label
 from src.retrieval import RetrievedChunk, retrieve
@@ -20,6 +21,7 @@ class RAGResult:
     fits: bool                     #does prompt fit inside context window
     dropped: int = 0               #amount of chunks left out to fit inside context window
     answer: str = ""               #answer of the model (starts empty)
+    standalone_question: str = ""  #question after refomulation
 
 
 #Retrieve + format + verify context window
@@ -31,14 +33,19 @@ def prepare_request(
     num_ctx: int = LLM_NUM_CTX,
     reserve: int = LLM_NUM_PREDICT,
     enforce_context: bool = True,  # False = always send prompt, even if doesnt fit in context window
+    llm=None,
+    history: ConversationHistory | None = None
 ) -> RAGResult:
 
     question = question.strip()  
     if not question:  
         raise ValueError("De vraag is leeg")
 
+    #Step 0: Turn follow-up question into standalone question
+    standalone = condense_question(llm, question, history) if (llm is not None and history) else question
+
     #Step 1: Retrieve relevant chunks (top k)
-    sources = retrieve(store, question, k) 
+    sources = retrieve(store, standalone, k) 
 
     #Step 2: Build the entire prompt
     messages = build_prompt(question, [source.document for source in sources])  # stap 2: prompt bouwen
@@ -65,6 +72,7 @@ def prepare_request(
         prompt_tokens=estimate_prompt_tokens(messages),
         fits=fits,
         dropped=dropped,
+        standalone_question=standalone
     )
 
 
@@ -75,12 +83,15 @@ def ask(
     llm,
     k: int = RETRIEVAL_K,
     enforce_context: bool = True,
+    history: ConversationHistory | None = None
 ) -> RAGResult:
 
     num_ctx = getattr(llm, "num_ctx", None) or LLM_NUM_CTX
     reserve = getattr(llm, "num_predict", None) or LLM_NUM_PREDICT
-    result = prepare_request(question, store, k, num_ctx, reserve, enforce_context) 
+    result = prepare_request(question, store, k, num_ctx, reserve, enforce_context, llm=llm, history=history) 
     result.answer = generate(llm, result.messages) 
+    if history is not None:
+        history.add(result.question, result.answer)
     return result
 
 
