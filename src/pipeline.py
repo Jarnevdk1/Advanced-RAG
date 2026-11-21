@@ -1,12 +1,12 @@
 import logging 
-from dataclasses import dataclass 
+from dataclasses import dataclass, field 
 
 from langchain_community.vectorstores import FAISS  
 
-from src.advanced import ConversationHistory, condense_question
-from src.config import LLM_NUM_CTX, LLM_NUM_PREDICT, RETRIEVAL_K  
+from src.advanced import ConversationHistory, condense_question, generate_queries
+from src.config import LLM_NUM_CTX, LLM_NUM_PREDICT, MULTI_QUERY_ENABLED, MULTI_QUERY_VARIANTS, RETRIEVAL_K
 from src.generation import build_prompt, estimate_prompt_tokens, fits_in_context, generate, page_label
-from src.retrieval import RetrievedChunk, retrieve
+from src.retrieval import RetrievedChunk, retrieve_multi
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class RAGResult:
     dropped: int = 0               #amount of chunks left out to fit inside context window
     answer: str = ""               #answer of the model (starts empty)
     standalone_question: str = ""  #question after refomulation
+    queries: list[str] = field(default_factory=list) #questions used (MQR)
 
 
 #Retrieve + format + verify context window
@@ -32,9 +33,11 @@ def prepare_request(
     k: int = RETRIEVAL_K,
     num_ctx: int = LLM_NUM_CTX,
     reserve: int = LLM_NUM_PREDICT,
-    enforce_context: bool = True,  # False = always send prompt, even if doesnt fit in context window
+    enforce_context: bool = True,  #False = always send prompt, even if doesnt fit in context window
     llm=None,
-    history: ConversationHistory | None = None
+    history: ConversationHistory | None = None,
+    multi_query: bool = MULTI_QUERY_ENABLED,    
+    n_variants: int = MULTI_QUERY_VARIANTS,
 ) -> RAGResult:
 
     question = question.strip()  
@@ -44,11 +47,12 @@ def prepare_request(
     #Step 0: Turn follow-up question into standalone question
     standalone = condense_question(llm, question, history) if (llm is not None and history) else question
 
-    #Step 1: Retrieve relevant chunks (top k)
-    sources = retrieve(store, standalone, k) 
+    #Step 1: Retrieve relevant chunks (top k) (MRQ is possible)
+    queries = generate_queries(llm, standalone, n_variants) if (multi_query and llm is not None) else [standalone]
+    sources = retrieve_multi(store, queries, k)
 
     #Step 2: Build the entire prompt
-    messages = build_prompt(question, [source.document for source in sources])  # stap 2: prompt bouwen
+    messages = build_prompt(question, [source.document for source in sources]) 
 
     #Step 3: Drop least relevant chunks if doesnt fit in context window
     dropped = 0  
@@ -72,7 +76,8 @@ def prepare_request(
         prompt_tokens=estimate_prompt_tokens(messages),
         fits=fits,
         dropped=dropped,
-        standalone_question=standalone
+        standalone_question=standalone,
+        queries=queries
     )
 
 
@@ -83,12 +88,14 @@ def ask(
     llm,
     k: int = RETRIEVAL_K,
     enforce_context: bool = True,
-    history: ConversationHistory | None = None
+    history: ConversationHistory | None = None,
+    multi_query: bool = MULTI_QUERY_ENABLED,
+    n_variants: int = MULTI_QUERY_VARIANTS,
 ) -> RAGResult:
 
     num_ctx = getattr(llm, "num_ctx", None) or LLM_NUM_CTX
     reserve = getattr(llm, "num_predict", None) or LLM_NUM_PREDICT
-    result = prepare_request(question, store, k, num_ctx, reserve, enforce_context, llm=llm, history=history) 
+    result = prepare_request(question, store, k, num_ctx, reserve, enforce_context, llm=llm, history=history, multi_query=multi_query, n_variants=n_variants) 
     result.answer = generate(llm, result.messages) 
     if history is not None:
         history.add(result.question, result.answer)

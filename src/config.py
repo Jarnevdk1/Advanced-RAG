@@ -24,3 +24,8 @@ RETRIEVAL_K = 4
 #HISTORY paramaters
 HISTORY_MAX_TURNS = 3       #Amount of question-answer pairs which can be used by the question condenstation
 HISTORY_ANSWER_CHARS = 300  #Max amount of chars of the previous answers
+
+#Multi-Query Retrieval paramaters
+MULTI_QUERY_ENABLED = True  #Default value = MRQ On
+MULTI_QUERY_VARIANTS = 3    #Amount of extra questions next to the original
+RRF_K = 60                  #Reciprocal Rank Fusion 
