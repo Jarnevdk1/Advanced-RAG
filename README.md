@@ -28,11 +28,6 @@ streamlit run app/main.py
 ```
 Voeg PDF's toe in de zijbalk en klik op "Verwerk documenten". Het embeddingmodel wordt bij de eerste keer gedownload.
 
-## Tests
-```
-pytest -v
-```
-
 ## Structuur
 - `app/main.py`: Streamlit-interface
 - `src/`: ingestie, embeddings, vectoropslag, retrieval, generatie, geavanceerde technieken en de pijplijn
